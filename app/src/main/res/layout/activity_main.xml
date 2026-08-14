@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="코레일 로그인"
+            android:textStyle="bold"
+            android:textSize="16sp"
+            android:layout_marginBottom="8dp" />
+
+        <RadioGroup
+            android:id="@+id/radioGroupLoginType"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <RadioButton
+                android:id="@+id/rbEmail"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="이메일"
+                android:checked="true" />
+
+            <RadioButton
+                android:id="@+id/rbMembership"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="회원번호" />
+
+            <RadioButton
+                android:id="@+id/rbPhone"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="휴대전화" />
+        </RadioGroup>
+
+        <EditText
+            android:id="@+id/editLoginId"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="아이디 (이메일/회원번호/휴대전화)"
+            android:inputType="textEmailAddress"
+            android:autofillHints="username" />
+
+        <EditText
+            android:id="@+id/editPassword"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="비밀번호"
+            android:inputType="textPassword"
+            android:autofillHints="password"
+            android:layout_marginBottom="16dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="예매 조건"
+            android:textStyle="bold"
+            android:textSize="16sp"
+            android:layout_marginBottom="8dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="2">
+
+            <EditText
+                android:id="@+id/editDepStation"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:hint="출발역 (예: 서울)" />
+
+            <EditText
+                android:id="@+id/editArrStation"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:hint="도착역 (예: 부산)" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/buttonPickDate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="날짜 선택" />
+
+        <TextView
+            android:id="@+id/textSelectedDate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="선택된 날짜 없음" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp"
+            android:weightSum="2">
+
+            <EditText
+                android:id="@+id/editStartTime"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:hint="시작시각 HHmm (예: 0900)"
+                android:inputType="number" />
+
+            <EditText
+                android:id="@+id/editEndTime"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:hint="종료시각 HHmm (예: 1200)"
+                android:inputType="number" />
+        </LinearLayout>
+
+        <EditText
+            android:id="@+id/editAdultCount"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="성인 인원수 (기본 1)"
+            android:inputType="number" />
+
+        <RadioGroup
+            android:id="@+id/radioGroupSeatType"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+
+            <RadioButton
+                android:id="@+id/rbGeneralSeat"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="일반실"
+                android:checked="true" />
+
+            <RadioButton
+                android:id="@+id/rbSpecialSeat"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="특실" />
+        </RadioGroup>
+
+        <EditText
+            android:id="@+id/editPollInterval"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="재시도 간격(초), 기본 5"
+            android:inputType="number"
+            android:layout_marginBottom="16dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="텔레그램 알림"
+            android:textStyle="bold"
+            android:textSize="16sp"
+            android:layout_marginBottom="8dp" />
+
+        <EditText
+            android:id="@+id/editTelegramToken"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="텔레그램 봇 토큰" />
+
+        <EditText
+            android:id="@+id/editTelegramChatId"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="텔레그램 Chat ID"
+            android:layout_marginBottom="16dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="2">
+
+            <Button
+                android:id="@+id/buttonStart"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="시작" />
+
+            <Button
+                android:id="@+id/buttonStop"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="중지" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/buttonIgnoreBattery"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="배터리 최적화 제외 설정" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="실행 로그"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/textLog"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="200dp"
+            android:background="#111111"
+            android:textColor="#00FF66"
+            android:fontFamily="monospace"
+            android:padding="8dp"
+            android:textSize="12sp"
+            android:text="대기 중..." />
+
+    </LinearLayout>
+</ScrollView>

@@ -1,0 +1,12 @@
+# secrets — never commit
+korail_credentials.txt
+
+# build outputs
+.gradle/
+app/build/
+build/
+*.apk
+*.zip
+
+# machine-specific
+local.properties
