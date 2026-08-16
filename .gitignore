@@ -1,5 +1,7 @@
 # secrets — never commit
 korail_credentials.txt
+keystore.properties
+keystore/
 
 # build outputs
 .gradle/
