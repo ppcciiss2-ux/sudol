@@ -433,7 +433,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         val calendarCard = FrameLayout(this).apply {
-            background = roundedDrawable(Color.WHITE, null, 10)
+            // Was hardcoded white — but the theme also makes CalendarView's day-number text
+            // white in dark mode, so white-on-white made the whole calendar invisible.
+            // colorCard/colorBorder track the same light/dark mode as the text does.
+            background = roundedDrawable(colorCard, colorBorder, 10)
             setPadding(dp(4), dp(4), dp(4), dp(4))
         }
         val calendarView = CalendarView(this).apply { date = cal.timeInMillis }

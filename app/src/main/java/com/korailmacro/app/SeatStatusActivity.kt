@@ -98,10 +98,14 @@ class SeatStatusActivity : AppCompatActivity() {
             try {
                 val api = KorailApi()
                 api.login(prefs.loginType, prefs.loginId, prefs.password)
-                val trains = api.searchTrain(
+                val allTrains = api.searchTrain(
                     prefs.depStation, prefs.arrStation,
                     prefs.travelDate, prefs.startTime, prefs.adultCount
                 )
+                // 메인 화면 "열차 종류" 체크박스와 동일한 조건으로 걸러서 보여준다 (KTX만 체크했는데
+                // ITX 등 다른 열차가 같이 보이던 문제 수정).
+                val allowedTypes = prefs.trainTypes
+                val trains = allTrains.filter { t -> allowedTypes.any { it.matches(t.trainTypeName) } }
                 runOnUiThread {
                     adapter.replaceAll(trains)
                     if (trains.isEmpty()) {
