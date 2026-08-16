@@ -69,7 +69,6 @@ class ReservationService : Service() {
                         prefs.depStation, prefs.arrStation,
                         prefs.travelDate, prefs.startTime, prefs.adultCount
                     )
-                    ServiceBus.updateTrains(trains)
                     val endTime = prefs.endTime
                     val allowedTypes = prefs.trainTypes
                     val candidates = trains.filter { t ->

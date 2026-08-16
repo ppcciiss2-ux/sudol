@@ -8,20 +8,35 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
+import android.widget.Button
 import android.widget.ListView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.korailmacro.app.korail.KorailApi
 import com.korailmacro.app.korail.Train
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
 
-/** 스와이프로 오가는 조회수 전용 화면: ReservationService의 가장 최근 검색 결과(필터 적용 전 전체 열차)를 실시간으로 보여준다. */
+/**
+ * 스와이프로 오가는 조회 전용 화면. ReservationService(매크로)와는 완전히 독립적으로,
+ * 이 화면 자체가 로그인+조회를 직접 수행한다 — 매크로를 시작하지 않고도, 매크로가 실행
+ * 중이든 아니든 상관없이 언제든 "지금 좌석이 있는지"만 바로 확인할 수 있다. 예약(reserve)은
+ * 절대 호출하지 않는다.
+ */
 class SeatStatusActivity : AppCompatActivity() {
+
+    private lateinit var prefs: Prefs
+    private lateinit var textStatus: TextView
+    private lateinit var textLastUpdated: TextView
+    private lateinit var buttonRefresh: Button
+    private lateinit var listTrains: ListView
+    private lateinit var adapter: TrainStatusAdapter
 
     private val gestureDetector by lazy {
         GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
@@ -47,30 +62,67 @@ class SeatStatusActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_seat_status)
-        val prefs = Prefs(this)
+        prefs = Prefs(this)
 
-        val listTrains = findViewById<ListView>(R.id.listTrains)
-        val textEmpty = findViewById<TextView>(R.id.textEmpty)
+        listTrains = findViewById(R.id.listTrains)
+        textStatus = findViewById(R.id.textStatus)
+        textLastUpdated = findViewById(R.id.textLastUpdated)
+        buttonRefresh = findViewById(R.id.buttonRefresh)
         val textRouteSummary = findViewById<TextView>(R.id.textRouteSummary)
-        val textLastUpdated = findViewById<TextView>(R.id.textLastUpdated)
 
         textRouteSummary.text = "${prefs.depStation} → ${prefs.arrStation} · ${prefs.travelDate}"
 
-        val adapter = TrainStatusAdapter(this)
+        adapter = TrainStatusAdapter(this)
         listTrains.adapter = adapter
 
-        lifecycleScope.launch {
-            ServiceBus.trains.collect { trains ->
-                adapter.replaceAll(trains)
-                textEmpty.visibility = if (trains.isEmpty()) View.VISIBLE else View.GONE
+        buttonRefresh.setOnClickListener { runQuery() }
+
+        runQuery()
+    }
+
+    /** 이 화면 안에서만 쓰는 독립적인 1회성 로그인+조회. 매크로 실행 상태와 무관하게 매번 새로 조회한다. */
+    private fun runQuery() {
+        if (prefs.loginId.isBlank() || prefs.password.isBlank()) {
+            showStatus("환경설정(⚙)에서 코레일 로그인 정보를 입력하세요")
+            return
+        }
+        if (prefs.depStation.isBlank() || prefs.arrStation.isBlank() || prefs.travelDate.isBlank()) {
+            showStatus("출발역/도착역/날짜를 먼저 선택하세요")
+            return
+        }
+
+        buttonRefresh.isEnabled = false
+        listTrains.visibility = View.GONE
+        showStatus("조회 중...")
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val api = KorailApi()
+                api.login(prefs.loginType, prefs.loginId, prefs.password)
+                val trains = api.searchTrain(
+                    prefs.depStation, prefs.arrStation,
+                    prefs.travelDate, prefs.startTime, prefs.adultCount
+                )
+                runOnUiThread {
+                    adapter.replaceAll(trains)
+                    if (trains.isEmpty()) {
+                        showStatus("조건에 맞는 열차가 없습니다")
+                    } else {
+                        textStatus.visibility = View.GONE
+                        listTrains.visibility = View.VISIBLE
+                    }
+                    textLastUpdated.text = "마지막 조회: " + SimpleDateFormat("HH:mm:ss", Locale.KOREA).format(Date())
+                }
+            } catch (e: Exception) {
+                runOnUiThread { showStatus("조회 실패: ${e.message}") }
+            } finally {
+                runOnUiThread { buttonRefresh.isEnabled = true }
             }
         }
-        lifecycleScope.launch {
-            ServiceBus.lastSearchedAt.collect { timestamp ->
-                textLastUpdated.text = if (timestamp == 0L) "" else
-                    "마지막 조회: " + SimpleDateFormat("HH:mm:ss", Locale.KOREA).format(Date(timestamp))
-            }
-        }
+    }
+
+    private fun showStatus(message: String) {
+        textStatus.text = message
+        textStatus.visibility = View.VISIBLE
     }
 
     private class TrainStatusAdapter(context: Context) : ArrayAdapter<Train>(context, 0) {
