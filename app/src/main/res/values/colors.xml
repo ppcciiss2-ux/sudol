@@ -8,4 +8,5 @@
     <color name="borderColor">#D8DCE3</color>
     <color name="textPrimary">#1B1D22</color>
     <color name="textSecondary">#6B7280</color>
+    <color name="colorSuccess">#1E8E3E</color>
 </resources>

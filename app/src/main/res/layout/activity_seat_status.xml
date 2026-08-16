@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="좌석 현황"
+        android:textStyle="bold"
+        android:textSize="20sp"
+        android:layout_marginBottom="4dp" />
+
+    <TextView
+        android:id="@+id/textRouteSummary"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/textLastUpdated"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="12sp"
+        android:layout_marginBottom="12dp" />
+
+    <TextView
+        android:id="@+id/textEmpty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="아직 조회 결과가 없습니다.\n시작 버튼을 눌러 매크로를 실행하면 여기에 실시간 좌석 현황이 표시됩니다."
+        android:gravity="center"
+        android:layout_marginTop="60dp"
+        android:visibility="gone" />
+
+    <ListView
+        android:id="@+id/listTrains"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:dividerHeight="1dp" />
+
+</LinearLayout>

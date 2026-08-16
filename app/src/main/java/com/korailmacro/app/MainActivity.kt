@@ -12,7 +12,9 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.GestureDetector
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
@@ -39,6 +41,7 @@ import com.korailmacro.app.korail.TrainType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.Calendar
+import kotlin.math.abs
 
 class MainActivity : AppCompatActivity() {
 
@@ -55,6 +58,28 @@ class MainActivity : AppCompatActivity() {
     private val colorAccent get() = ContextCompat.getColor(this, R.color.colorAccent)
     private val colorTextPrimary get() = ContextCompat.getColor(this, R.color.textPrimary)
     private val colorTextSecondary get() = ContextCompat.getColor(this, R.color.textSecondary)
+
+    /** 오른쪽 스와이프 -> 좌석 현황 화면. 관찰만 하고 소비는 하지 않으므로 기존 스크롤/탭 동작에 영향 없음. */
+    private val gestureDetector by lazy {
+        GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onFling(e1: MotionEvent?, e2: MotionEvent, velocityX: Float, velocityY: Float): Boolean {
+                if (e1 == null) return false
+                val dx = e2.x - e1.x
+                val dy = e2.y - e1.y
+                if (dx > 150 && abs(dx) > abs(dy) && abs(velocityX) > 300) {
+                    startActivity(Intent(this@MainActivity, SeatStatusActivity::class.java))
+                    overridePendingTransition(android.R.anim.slide_in_left, android.R.anim.slide_out_right)
+                    return true
+                }
+                return false
+            }
+        })
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        gestureDetector.onTouchEvent(ev)
+        return super.dispatchTouchEvent(ev)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
