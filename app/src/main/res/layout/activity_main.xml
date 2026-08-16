@@ -26,73 +26,17 @@
                 android:textStyle="bold"
                 android:textSize="20sp" />
 
-            <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/switchDarkMode"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="다크모드" />
+            <TextView
+                android:id="@+id/buttonSettings"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:text="⚙"
+                android:textSize="24sp"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless" />
         </LinearLayout>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="코레일 로그인"
-            android:textStyle="bold"
-            android:textSize="16sp"
-            android:layout_marginBottom="8dp" />
-
-        <RadioGroup
-            android:id="@+id/radioGroupLoginType"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
-
-            <RadioButton
-                android:id="@+id/rbEmail"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="이메일"
-                android:checked="true" />
-
-            <RadioButton
-                android:id="@+id/rbMembership"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:text="회원번호" />
-
-            <RadioButton
-                android:id="@+id/rbPhone"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:text="휴대전화" />
-        </RadioGroup>
-
-        <EditText
-            android:id="@+id/editLoginId"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="아이디 (이메일/회원번호/휴대전화)"
-            android:inputType="textEmailAddress"
-            android:autofillHints="username" />
-
-        <EditText
-            android:id="@+id/editPassword"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="비밀번호"
-            android:inputType="textPassword"
-            android:autofillHints="password"
-            android:layout_marginBottom="8dp" />
-
-        <Button
-            android:id="@+id/buttonTestLogin"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="로그인 확인"
-            android:layout_marginBottom="16dp" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -232,8 +176,11 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:hint="성인 인원수 (기본 1)"
-            android:inputType="number" />
+            android:hint="인원수 선택"
+            android:inputType="none"
+            android:focusable="false"
+            android:cursorVisible="false"
+            android:clickable="true" />
 
         <RadioGroup
             android:id="@+id/radioGroupSeatType"
@@ -257,40 +204,11 @@
                 android:text="특실" />
         </RadioGroup>
 
-        <EditText
-            android:id="@+id/editPollInterval"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:hint="재시도 간격(초), 기본 5"
-            android:inputType="number"
-            android:layout_marginBottom="16dp" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="텔레그램 알림"
-            android:textStyle="bold"
-            android:textSize="16sp"
-            android:layout_marginBottom="8dp" />
-
-        <EditText
-            android:id="@+id/editTelegramToken"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="텔레그램 봇 토큰" />
-
-        <EditText
-            android:id="@+id/editTelegramChatId"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="텔레그램 Chat ID"
-            android:layout_marginBottom="16dp" />
-
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
+            android:layout_marginTop="16dp"
             android:weightSum="2">
 
             <Button

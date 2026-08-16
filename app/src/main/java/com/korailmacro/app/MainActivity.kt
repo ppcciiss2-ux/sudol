@@ -32,6 +32,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.korailmacro.app.databinding.ActivityMainBinding
+import com.korailmacro.app.databinding.DialogSettingsBinding
 import com.korailmacro.app.korail.KorailApi
 import com.korailmacro.app.korail.Stations
 import com.korailmacro.app.korail.TrainType
@@ -64,20 +65,13 @@ class MainActivity : AppCompatActivity() {
         restoreFromPrefs()
         requestNotificationPermissionIfNeeded()
 
-        binding.switchDarkMode.isChecked = ThemePrefs.isDarkMode(this)
-        binding.switchDarkMode.setOnCheckedChangeListener { _, isChecked ->
-            ThemePrefs.setDarkMode(this, isChecked)
-            AppCompatDelegate.setDefaultNightMode(
-                if (isChecked) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
-            )
-        }
-
-        binding.buttonTestLogin.setOnClickListener { onTestLoginClicked() }
+        binding.buttonSettings.setOnClickListener { showSettingsDialog() }
         binding.buttonPickDate.setOnClickListener { showDateAndStartTimePicker() }
         binding.editDepStation.setOnClickListener { showStationPicker(binding.editDepStation, isDeparture = true) }
         binding.editArrStation.setOnClickListener { showStationPicker(binding.editArrStation, isDeparture = false) }
         binding.editStartTime.setOnClickListener { showDateAndStartTimePicker() }
         binding.editEndTime.setOnClickListener { showEndTimePicker() }
+        binding.editAdultCount.setOnClickListener { showAdultCountPicker() }
 
         binding.buttonStart.setOnClickListener { onStartClicked() }
         binding.buttonStop.setOnClickListener {
@@ -100,27 +94,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun restoreFromPrefs() {
-        binding.editLoginId.setText(prefs.loginId)
-        binding.editPassword.setText(prefs.password)
         binding.editDepStation.setText(prefs.depStation)
         binding.editArrStation.setText(prefs.arrStation)
         binding.editStartTime.setText(prefs.startTime)
         binding.editEndTime.setText(prefs.endTime)
         binding.editAdultCount.setText(prefs.adultCount.toString())
-        binding.editPollInterval.setText(prefs.pollIntervalSec.toString())
-        binding.editTelegramToken.setText(prefs.telegramToken)
-        binding.editTelegramChatId.setText(prefs.telegramChatId)
 
         selectedDate = prefs.travelDate
         if (selectedDate.isNotBlank()) {
             binding.textSelectedDate.text = "선택된 날짜: $selectedDate"
         }
 
-        when (prefs.loginType) {
-            KorailApi.LOGIN_TYPE_MEMBERSHIP -> binding.rbMembership.isChecked = true
-            KorailApi.LOGIN_TYPE_PHONE -> binding.rbPhone.isChecked = true
-            else -> binding.rbEmail.isChecked = true
-        }
         if (prefs.seatType == KorailApi.SEAT_SPECIAL) {
             binding.rbSpecialSeat.isChecked = true
         } else {
@@ -135,23 +119,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     /** Logs in immediately (independent of the reservation loop) so the user gets a pass/fail answer before configuring the rest of the form. */
-    private fun onTestLoginClicked() {
-        val loginId = binding.editLoginId.text.toString().trim()
-        val password = binding.editPassword.text.toString()
-        if (loginId.isBlank() || password.isBlank()) {
-            Toast.makeText(this, "아이디/비밀번호를 입력하세요", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val loginType = when (binding.radioGroupLoginType.checkedRadioButtonId) {
-            binding.rbMembership.id -> KorailApi.LOGIN_TYPE_MEMBERSHIP
-            binding.rbPhone.id -> KorailApi.LOGIN_TYPE_PHONE
-            else -> KorailApi.LOGIN_TYPE_EMAIL
-        }
+    private fun runLoginTest(loginType: String, loginId: String, password: String, button: Button) {
         prefs.loginType = loginType
         prefs.loginId = loginId
         prefs.password = password
 
-        binding.buttonTestLogin.isEnabled = false
+        button.isEnabled = false
         ServiceBus.append("로그인 확인 중...")
         lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -160,9 +133,122 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 ServiceBus.append("❌ 로그인 실패: ${e.message}")
             } finally {
-                runOnUiThread { binding.buttonTestLogin.isEnabled = true }
+                runOnUiThread { button.isEnabled = true }
             }
         }
+    }
+
+    /** 환경설정: 로그인, 새로고침 간격, 다크모드, 텔레그램 알림 — 예매 조건과 분리된 설정들을 한 곳에 모은 다이얼로그. */
+    private fun showSettingsDialog() {
+        val db = DialogSettingsBinding.inflate(layoutInflater)
+
+        db.editLoginId.setText(prefs.loginId)
+        db.editPassword.setText(prefs.password)
+        when (prefs.loginType) {
+            KorailApi.LOGIN_TYPE_MEMBERSHIP -> db.rbMembership.isChecked = true
+            KorailApi.LOGIN_TYPE_PHONE -> db.rbPhone.isChecked = true
+            else -> db.rbEmail.isChecked = true
+        }
+        db.editTelegramToken.setText(prefs.telegramToken)
+        db.editTelegramChatId.setText(prefs.telegramChatId)
+        db.switchDarkMode.isChecked = ThemePrefs.isDarkMode(this)
+
+        val intervalOptions = intArrayOf(5, 10, 15, 30, 60)
+        var pickedInterval = intervalOptions.minByOrNull { kotlin.math.abs(it - prefs.pollIntervalSec) } ?: 5
+
+        lateinit var refreshIntervalChips: () -> Unit
+        refreshIntervalChips = {
+            db.pollIntervalChipRow.removeAllViews()
+            for (sec in intervalOptions) {
+                val c = chip("${sec}초", selected = sec == pickedInterval) {
+                    pickedInterval = sec
+                    refreshIntervalChips()
+                }
+                db.pollIntervalChipRow.addView(c, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    marginEnd = dp(6)
+                })
+            }
+        }
+        refreshIntervalChips()
+
+        db.switchDarkMode.setOnCheckedChangeListener { _, isChecked ->
+            ThemePrefs.setDarkMode(this, isChecked)
+            // Triggers an Activity recreate, which dismisses this dialog as a side effect — that's fine.
+            AppCompatDelegate.setDefaultNightMode(
+                if (isChecked) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
+            )
+        }
+
+        db.buttonTestLogin.setOnClickListener {
+            val loginId = db.editLoginId.text.toString().trim()
+            val password = db.editPassword.text.toString()
+            if (loginId.isBlank() || password.isBlank()) {
+                Toast.makeText(this, "아이디/비밀번호를 입력하세요", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val loginType = when (db.radioGroupLoginType.checkedRadioButtonId) {
+                db.rbMembership.id -> KorailApi.LOGIN_TYPE_MEMBERSHIP
+                db.rbPhone.id -> KorailApi.LOGIN_TYPE_PHONE
+                else -> KorailApi.LOGIN_TYPE_EMAIL
+            }
+            runLoginTest(loginType, loginId, password, db.buttonTestLogin)
+        }
+
+        val dialog = AlertDialog.Builder(this).setView(db.root).create()
+
+        db.buttonSaveSettings.setOnClickListener {
+            val loginId = db.editLoginId.text.toString().trim()
+            val password = db.editPassword.text.toString()
+            prefs.loginType = when (db.radioGroupLoginType.checkedRadioButtonId) {
+                db.rbMembership.id -> KorailApi.LOGIN_TYPE_MEMBERSHIP
+                db.rbPhone.id -> KorailApi.LOGIN_TYPE_PHONE
+                else -> KorailApi.LOGIN_TYPE_EMAIL
+            }
+            prefs.loginId = loginId
+            prefs.password = password
+            prefs.pollIntervalSec = pickedInterval
+            prefs.telegramToken = db.editTelegramToken.text.toString().trim()
+            prefs.telegramChatId = db.editTelegramChatId.text.toString().trim()
+            Toast.makeText(this, "환경설정 저장됨", Toast.LENGTH_SHORT).show()
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
+    /** KORAIL-style chip picker for 성인 인원수 (1~9명), tap-to-select-and-dismiss like the end-time picker. */
+    private fun showAdultCountPicker() {
+        val pad = dp(16)
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(colorBg)
+            setPadding(pad, pad, pad, pad)
+        }
+        root.addView(dialogTitle("인원수 선택"))
+
+        val current = binding.editAdultCount.text.toString().trim().toIntOrNull() ?: 1
+
+        val scroll = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        scroll.addView(row)
+        root.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+            topMargin = dp(16)
+        })
+
+        lateinit var dialog: AlertDialog
+        for (n in 1..9) {
+            val c = chip("${n}명", selected = n == current) {
+                binding.editAdultCount.setText(n.toString())
+                dialog.dismiss()
+            }
+            row.addView(c, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                marginEnd = dp(6)
+            })
+        }
+
+        dialog = AlertDialog.Builder(this).setView(root).create()
+        dialog.show()
+        dialog.window?.setBackgroundDrawable(GradientDrawable().apply { setColor(colorBg) })
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
@@ -450,18 +536,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun onStartClicked() {
-        val loginId = binding.editLoginId.text.toString().trim()
-        val password = binding.editPassword.text.toString()
         val dep = binding.editDepStation.text.toString().trim()
         val arr = binding.editArrStation.text.toString().trim()
         val startTime = binding.editStartTime.text.toString().trim().ifBlank { "000000" }.padEnd(6, '0')
         val endTimeRaw = binding.editEndTime.text.toString().trim()
         val endTime = if (endTimeRaw.isBlank()) "" else endTimeRaw.padEnd(6, '0')
         val adultCount = binding.editAdultCount.text.toString().trim().toIntOrNull() ?: 1
-        val pollInterval = binding.editPollInterval.text.toString().trim().toIntOrNull() ?: 5
 
-        if (loginId.isBlank() || password.isBlank()) {
-            Toast.makeText(this, "코레일 로그인 정보를 입력하세요", Toast.LENGTH_SHORT).show()
+        if (prefs.loginId.isBlank() || prefs.password.isBlank()) {
+            Toast.makeText(this, "환경설정(⚙)에서 코레일 로그인 정보를 입력하세요", Toast.LENGTH_SHORT).show()
             return
         }
         if (dep.isBlank() || arr.isBlank()) {
@@ -483,13 +566,6 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        prefs.loginType = when (binding.radioGroupLoginType.checkedRadioButtonId) {
-            binding.rbMembership.id -> KorailApi.LOGIN_TYPE_MEMBERSHIP
-            binding.rbPhone.id -> KorailApi.LOGIN_TYPE_PHONE
-            else -> KorailApi.LOGIN_TYPE_EMAIL
-        }
-        prefs.loginId = loginId
-        prefs.password = password
         prefs.depStation = dep
         prefs.arrStation = arr
         prefs.travelDate = selectedDate
@@ -498,10 +574,7 @@ class MainActivity : AppCompatActivity() {
         prefs.adultCount = adultCount
         prefs.seatType = if (binding.radioGroupSeatType.checkedRadioButtonId == binding.rbSpecialSeat.id)
             KorailApi.SEAT_SPECIAL else KorailApi.SEAT_GENERAL
-        prefs.pollIntervalSec = pollInterval
         prefs.trainTypes = selectedTypes
-        prefs.telegramToken = binding.editTelegramToken.text.toString().trim()
-        prefs.telegramChatId = binding.editTelegramChatId.text.toString().trim()
         prefs.pushRecentRoute(dep, arr)
 
         ServiceBus.clear()
