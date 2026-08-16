@@ -28,6 +28,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.korailmacro.app.databinding.ActivityMainBinding
@@ -44,12 +45,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var prefs: Prefs
     private var selectedDate: String = ""
 
-    // KORAIL-app-style dark picker palette.
-    private val colorBg = Color.parseColor("#14161C")
-    private val colorCard = Color.parseColor("#1E212B")
-    private val colorBorder = Color.parseColor("#33384A")
-    private val colorAccent = Color.parseColor("#2F80FF")
-    private val colorTextSecondary = Color.parseColor("#9AA0AC")
+    // KORAIL-app-style picker palette — resolved lazily (not at construction time, before
+    // the Activity is attached to a Context) and re-resolved on every access so dialogs
+    // always match the currently active light/dark mode.
+    private val colorBg get() = ContextCompat.getColor(this, R.color.bgColor)
+    private val colorCard get() = ContextCompat.getColor(this, R.color.cardColor)
+    private val colorBorder get() = ContextCompat.getColor(this, R.color.borderColor)
+    private val colorAccent get() = ContextCompat.getColor(this, R.color.colorAccent)
+    private val colorTextPrimary get() = ContextCompat.getColor(this, R.color.textPrimary)
+    private val colorTextSecondary get() = ContextCompat.getColor(this, R.color.textSecondary)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,6 +63,14 @@ class MainActivity : AppCompatActivity() {
 
         restoreFromPrefs()
         requestNotificationPermissionIfNeeded()
+
+        binding.switchDarkMode.isChecked = ThemePrefs.isDarkMode(this)
+        binding.switchDarkMode.setOnCheckedChangeListener { _, isChecked ->
+            ThemePrefs.setDarkMode(this, isChecked)
+            AppCompatDelegate.setDefaultNightMode(
+                if (isChecked) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
+            )
+        }
 
         binding.buttonTestLogin.setOnClickListener { onTestLoginClicked() }
         binding.buttonPickDate.setOnClickListener { showDateAndStartTimePicker() }
@@ -177,9 +189,9 @@ class MainActivity : AppCompatActivity() {
             setOnClickListener { onClick() }
         }
 
-    private fun darkTitle(text: String): TextView = TextView(this).apply {
+    private fun dialogTitle(text: String): TextView = TextView(this).apply {
         this.text = text
-        setTextColor(Color.WHITE)
+        setTextColor(colorTextPrimary)
         textSize = 18f
         setTypeface(typeface, android.graphics.Typeface.BOLD)
     }
@@ -192,12 +204,12 @@ class MainActivity : AppCompatActivity() {
             setBackgroundColor(colorBg)
             setPadding(pad, pad, pad, pad)
         }
-        root.addView(darkTitle(if (isDeparture) "출발역 선택" else "도착역 선택"))
+        root.addView(dialogTitle(if (isDeparture) "출발역 선택" else "도착역 선택"))
 
         val search = EditText(this).apply {
             hint = "역 이름 또는 초성 입력"
             setHintTextColor(colorTextSecondary)
-            setTextColor(Color.WHITE)
+            setTextColor(colorTextPrimary)
             background = roundedDrawable(colorCard, colorBorder)
             setPadding(dp(12), dp(10), dp(12), dp(10))
             setSingleLine()
@@ -237,7 +249,7 @@ class MainActivity : AppCompatActivity() {
         val adapter = object : ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, Stations.NAMES.toMutableList()) {
             override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
                 val view = super.getView(position, convertView, parent) as TextView
-                view.setTextColor(Color.WHITE)
+                view.setTextColor(colorTextPrimary)
                 view.setBackgroundColor(colorBg)
                 view.setPadding(dp(4), dp(14), dp(4), dp(14))
                 return view
@@ -293,7 +305,7 @@ class MainActivity : AppCompatActivity() {
             setBackgroundColor(colorBg)
             setPadding(pad, pad, pad, pad)
         }
-        root.addView(darkTitle("가는날 선택"))
+        root.addView(dialogTitle("가는날 선택"))
 
         val cal = Calendar.getInstance()
         if (selectedDate.length == 8) {
@@ -321,7 +333,7 @@ class MainActivity : AppCompatActivity() {
 
         val hourLabel = TextView(this).apply {
             text = "시간대 선택"
-            setTextColor(Color.WHITE)
+            setTextColor(colorTextPrimary)
             textSize = 15f
         }
         root.addView(hourLabel, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
@@ -402,7 +414,7 @@ class MainActivity : AppCompatActivity() {
             setBackgroundColor(colorBg)
             setPadding(pad, pad, pad, pad)
         }
-        root.addView(darkTitle("종료시각 선택"))
+        root.addView(dialogTitle("종료시각 선택"))
 
         val currentHour = binding.editEndTime.text.toString().take(2).toIntOrNull()
 
