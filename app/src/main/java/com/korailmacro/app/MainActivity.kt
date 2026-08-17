@@ -108,7 +108,10 @@ class MainActivity : AppCompatActivity() {
         binding.buttonIgnoreBattery.setOnClickListener { requestIgnoreBatteryOptimizations() }
 
         lifecycleScope.launch {
-            ServiceBus.log.collect { binding.textLog.text = it }
+            ServiceBus.log.collect {
+                binding.textLog.text = it
+                binding.scrollLog.post { binding.scrollLog.fullScroll(View.FOCUS_DOWN) }
+            }
         }
         lifecycleScope.launch {
             ServiceBus.running.collect { running ->

@@ -241,17 +241,22 @@
             android:text="실행 로그"
             android:textStyle="bold" />
 
-        <TextView
-            android:id="@+id/textLog"
+        <ScrollView
+            android:id="@+id/scrollLog"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="200dp"
-            android:background="#111111"
-            android:textColor="#00FF66"
-            android:fontFamily="monospace"
-            android:padding="8dp"
-            android:textSize="12sp"
-            android:text="대기 중..." />
+            android:layout_height="240dp"
+            android:background="#111111">
+
+            <TextView
+                android:id="@+id/textLog"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#00FF66"
+                android:fontFamily="monospace"
+                android:padding="8dp"
+                android:textSize="12sp"
+                android:text="대기 중..." />
+        </ScrollView>
 
     </LinearLayout>
 </ScrollView>
