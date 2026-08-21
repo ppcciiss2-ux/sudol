@@ -109,8 +109,13 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             ServiceBus.log.collect {
+                // Only follow new lines if the user was already at (or near) the bottom —
+                // otherwise every ~5s poll update yanks them back down while reading history.
+                val wasNearBottom = isScrollNearBottom(binding.scrollLog)
                 binding.textLog.text = it
-                binding.scrollLog.post { binding.scrollLog.fullScroll(View.FOCUS_DOWN) }
+                if (wasNearBottom) {
+                    binding.scrollLog.post { binding.scrollLog.fullScroll(View.FOCUS_DOWN) }
+                }
             }
         }
         lifecycleScope.launch {
@@ -280,6 +285,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
+    private fun isScrollNearBottom(scrollView: ScrollView): Boolean {
+        val child = scrollView.getChildAt(0) ?: return true
+        val diff = child.bottom - (scrollView.height + scrollView.scrollY)
+        return diff <= dp(24)
+    }
 
     private fun roundedDrawable(fillColor: Int, strokeColor: Int? = null, radiusDp: Int = 10): GradientDrawable =
         GradientDrawable().apply {

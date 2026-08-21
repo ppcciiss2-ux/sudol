@@ -36,10 +36,18 @@ class ReservationService : Service() {
             stopSelfSafely()
             return START_NOT_STICKY
         }
+        // intent is only null when the OS redelivers a start command on its own (e.g. after the
+        // process was killed) rather than in direct response to the 시작 button. This service
+        // makes real purchases, so it must never resume on its own — require an explicit intent
+        // from MainActivity every time. START_NOT_STICKY (below) is the primary guard; this is
+        // defense in depth in case a future OS restart path skips that.
+        if (intent == null) return START_NOT_STICKY
         startForeground(NOTIF_ID, buildOngoingNotification("예매 조건 조회 중..."))
         wakeLock?.let { if (!it.isHeld) it.acquire(12 * 60 * 60 * 1000L) }
         startLoop()
-        return START_STICKY
+        // Deliberately not START_STICKY: if the OS kills this process, it must stay dead until
+        // the user explicitly presses 시작 again, never silently resume and re-attempt purchases.
+        return START_NOT_STICKY
     }
 
     private fun startLoop() {
