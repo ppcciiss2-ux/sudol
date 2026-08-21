@@ -109,6 +109,10 @@ class KorailApi {
         // "전체" (all train types) train group/type code used by the mobile app search screen
         private const val TRAIN_GROUP_ALL = "109"
 
+        // Server returns 10 trains/page regardless of pgPrCnt; cap how many pages searchTrain
+        // will follow via h_next_pg_flg so a dense route can't loop indefinitely.
+        private const val MAX_SEARCH_PAGES = 6
+
         private val LOGIN_SUCCESS_CODES = setOf("IRZ000001", "S200")
 
         private val COMMON_CODE_BOOTSTRAP_CODES = listOf(
@@ -262,7 +266,49 @@ class KorailApi {
         }
     }
 
+    /**
+     * The server hard-caps each response at 10 trains (h_rslt_cnt) regardless of pgPrCnt. Its
+     * own continuation cursor (qryStNo/qryStTrnNo, fed back from h_qry_st_no_next/h_trn_no_next)
+     * came back null even when h_next_pg_flg="Y", and guessing values for them (running offset +
+     * last train number, tried with both a fresh Sid per call and one Sid reused across calls)
+     * just returned page 1 again every time — so instead of that undocumented cursor, each
+     * further "page" is a fresh search re-anchored to just after the last train's departure time,
+     * using txtGoHour filtering that's already known to work correctly. Without this, a dense
+     * route+time window (e.g. KTX every ~15min for several hours) silently only ever saw the
+     * first ~10 departures.
+     */
     fun searchTrain(
+        dep: String,
+        arr: String,
+        date: String,
+        time: String,
+        adultCount: Int
+    ): List<Train> {
+        val allTrains = mutableListOf<Train>()
+        var searchFrom = time
+        var page = 0
+        while (page < MAX_SEARCH_PAGES) {
+            val trains = fetchSearchPage(dep, arr, date, searchFrom, adultCount)
+            if (trains.isEmpty()) break
+            allTrains.addAll(trains)
+            page++
+            if (trains.size < 10) break // fewer than a full page: no more trains that day
+            searchFrom = oneMinuteAfter(trains.last().depTime) ?: break
+        }
+        return allTrains
+    }
+
+    /** "192000" -> "192100"; null once past 23:59 (end of the searchable day). */
+    private fun oneMinuteAfter(depTime: String): String? {
+        if (depTime.length < 6) return null
+        val hour = depTime.substring(0, 2).toIntOrNull() ?: return null
+        val minute = depTime.substring(2, 4).toIntOrNull() ?: return null
+        val totalMinutes = hour * 60 + minute + 1
+        if (totalMinutes >= 24 * 60) return null
+        return "%02d%02d00".format(totalMinutes / 60, totalMinutes % 60)
+    }
+
+    private fun fetchSearchPage(
         dep: String,
         arr: String,
         date: String,

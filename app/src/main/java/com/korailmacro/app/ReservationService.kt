@@ -89,17 +89,37 @@ class ReservationService : Service() {
                             stopSelfSafely()
                             return@launch
                         } catch (e: Exception) {
-                            ServiceBus.append("예약 시도 실패(선점됨): ${e.message}")
+                            ServiceBus.append("예약 시도 실패: ${e.message}")
+                            if (isSessionExpired(e.message)) reLogin(api, prefs)
                         }
                     } else {
                         ServiceBus.append("빈 좌석 없음 (${trains.size}개 열차 확인, ${intervalMs / 1000}초 후 재시도)")
                     }
                 } catch (e: Exception) {
                     ServiceBus.append("조회 오류: ${e.message}")
+                    if (isSessionExpired(e.message)) reLogin(api, prefs)
                 }
                 updateNotification(buildOngoingNotification("계속 조회 중... (${intervalMs / 1000}초 간격)"))
                 delay(intervalMs)
             }
+        }
+    }
+
+    /**
+     * A lost reservation race can invalidate the session server-side, not just fail that one
+     * request — every subsequent search/reserve call then fails with the same "로그아웃" message
+     * forever unless we notice and log back in. This was previously mislabeled as "선점됨" (seat
+     * taken by someone else), which isn't what a session-expired error actually means.
+     */
+    private fun isSessionExpired(message: String?): Boolean =
+        message != null && ("로그아웃" in message || "다시 로그인" in message)
+
+    private fun reLogin(api: KorailApi, prefs: Prefs) {
+        try {
+            api.login(prefs.loginType, prefs.loginId, prefs.password)
+            ServiceBus.append("세션 만료 감지 -> 재로그인 성공")
+        } catch (e: Exception) {
+            ServiceBus.append("재로그인 실패: ${e.message}")
         }
     }
 
