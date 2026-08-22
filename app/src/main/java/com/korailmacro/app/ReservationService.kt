@@ -73,11 +73,11 @@ class ReservationService : Service() {
 
             while (isActive) {
                 try {
+                    val endTime = prefs.endTime
                     val trains = api.searchTrain(
                         prefs.depStation, prefs.arrStation,
-                        prefs.travelDate, prefs.startTime, prefs.adultCount
+                        prefs.travelDate, prefs.startTime, prefs.adultCount, endTime
                     )
-                    val endTime = prefs.endTime
                     val allowedTypes = prefs.trainTypes
                     val candidates = trains.filter { t ->
                         (endTime.isBlank() || t.depTime <= endTime) &&

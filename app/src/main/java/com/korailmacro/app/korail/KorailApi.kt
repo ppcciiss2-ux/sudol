@@ -282,7 +282,8 @@ class KorailApi {
         arr: String,
         date: String,
         time: String,
-        adultCount: Int
+        adultCount: Int,
+        endTime: String = ""
     ): List<Train> {
         val allTrains = mutableListOf<Train>()
         var searchFrom = time
@@ -292,6 +293,10 @@ class KorailApi {
             if (trains.isEmpty()) break
             allTrains.addAll(trains)
             page++
+            // Each page mixes every train type (KTX/ITX/무궁화/...), so a KTX-only filter applied
+            // later can't tell this function when it's "done" — stop paging once the raw results
+            // already reach the caller's end time instead of always fetching up to MAX_SEARCH_PAGES.
+            if (endTime.isNotBlank() && trains.last().depTime >= endTime) break
             if (trains.size < 10) break // fewer than a full page: no more trains that day
             searchFrom = oneMinuteAfter(trains.last().depTime) ?: break
         }

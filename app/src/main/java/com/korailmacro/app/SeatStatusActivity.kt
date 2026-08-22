@@ -100,7 +100,7 @@ class SeatStatusActivity : AppCompatActivity() {
                 api.login(prefs.loginType, prefs.loginId, prefs.password)
                 val allTrains = api.searchTrain(
                     prefs.depStation, prefs.arrStation,
-                    prefs.travelDate, prefs.startTime, prefs.adultCount
+                    prefs.travelDate, prefs.startTime, prefs.adultCount, prefs.endTime
                 )
                 // 메인 화면 "열차 종류" 체크박스와 동일한 조건으로 걸러서 보여준다 (KTX만 체크했는데
                 // ITX 등 다른 열차가 같이 보이던 문제 수정).
