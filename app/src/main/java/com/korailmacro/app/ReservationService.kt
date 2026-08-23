@@ -79,10 +79,17 @@ class ReservationService : Service() {
                         prefs.travelDate, prefs.startTime, prefs.adultCount, endTime
                     )
                     val allowedTypes = prefs.trainTypes
-                    val candidates = trains.filter { t ->
+                    // trains is the raw search result — searchTrain fetches whole 10-train pages
+                    // and only stops once a page's LAST train crosses endTime, so it always
+                    // includes some trains past endTime (and of every type) by construction.
+                    // matchingTrains is what the user actually asked for; report that count, not
+                    // the raw fetch count, so the log reflects their dep/arr/time/type criteria.
+                    val matchingTrains = trains.filter { t ->
                         (endTime.isBlank() || t.depTime <= endTime) &&
-                            allowedTypes.any { it.matches(t.trainTypeName) } &&
-                            if (prefs.seatType == KorailApi.SEAT_SPECIAL) t.hasSpecialSeat else t.hasGeneralSeat
+                            allowedTypes.any { it.matches(t.trainTypeName) }
+                    }
+                    val candidates = matchingTrains.filter { t ->
+                        if (prefs.seatType == KorailApi.SEAT_SPECIAL) t.hasSpecialSeat else t.hasGeneralSeat
                     }
 
                     if (candidates.isNotEmpty()) {
@@ -101,7 +108,7 @@ class ReservationService : Service() {
                             if (isSessionExpired(e.message)) reLogin(api, prefs)
                         }
                     } else {
-                        ServiceBus.append("빈 좌석 없음 (${trains.size}개 열차 확인, ${intervalMs / 1000}초 후 재시도)")
+                        ServiceBus.append("빈 좌석 없음 (조건에 맞는 열차 ${matchingTrains.size}개 확인, ${intervalMs / 1000}초 후 재시도)")
                     }
                 } catch (e: Exception) {
                     ServiceBus.append("조회 오류: ${e.message}")

@@ -102,10 +102,15 @@ class SeatStatusActivity : AppCompatActivity() {
                     prefs.depStation, prefs.arrStation,
                     prefs.travelDate, prefs.startTime, prefs.adultCount, prefs.endTime
                 )
-                // 메인 화면 "열차 종류" 체크박스와 동일한 조건으로 걸러서 보여준다 (KTX만 체크했는데
-                // ITX 등 다른 열차가 같이 보이던 문제 수정).
+                // 메인 화면의 열차 종류·종료시각 조건과 동일하게 걸러서 보여준다 (KTX만 체크했는데
+                // ITX가 같이 보이거나, 종료시각을 넘긴 열차까지 보이던 문제 수정). searchTrain은
+                // 페이지 단위로 가져오다 보니 원시 결과 자체는 종료시각을 넘긴 열차도 포함한다.
                 val allowedTypes = prefs.trainTypes
-                val trains = allTrains.filter { t -> allowedTypes.any { it.matches(t.trainTypeName) } }
+                val endTime = prefs.endTime
+                val trains = allTrains.filter { t ->
+                    allowedTypes.any { it.matches(t.trainTypeName) } &&
+                        (endTime.isBlank() || t.depTime <= endTime)
+                }
                 runOnUiThread {
                     adapter.replaceAll(trains)
                     if (trains.isEmpty()) {
