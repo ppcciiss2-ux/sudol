@@ -88,15 +88,22 @@ class ReservationService : Service() {
                         (endTime.isBlank() || t.depTime <= endTime) &&
                             allowedTypes.any { it.matches(t.trainTypeName) }
                     }
+                    // 일반실만 / 특실만 / 둘 다(SEAT_ANY) 중 무엇을 원하는지.
+                    val wantGeneral = prefs.seatType != KorailApi.SEAT_SPECIAL
+                    val wantSpecial = prefs.seatType != KorailApi.SEAT_GENERAL
                     val candidates = matchingTrains.filter { t ->
-                        if (prefs.seatType == KorailApi.SEAT_SPECIAL) t.hasSpecialSeat else t.hasGeneralSeat
+                        (wantGeneral && t.hasGeneralSeat) || (wantSpecial && t.hasSpecialSeat)
                     }
 
                     if (candidates.isNotEmpty()) {
                         val target = candidates.first()
-                        ServiceBus.append("빈 좌석 발견 -> 예약 시도: ${target.summary()}")
+                        // 둘 다 선택했고 한 열차에 일반·특실이 모두 남아 있으면 일반실을 먼저 잡는다.
+                        val seatForTarget = if (wantGeneral && target.hasGeneralSeat)
+                            KorailApi.SEAT_GENERAL else KorailApi.SEAT_SPECIAL
+                        val seatLabel = if (seatForTarget == KorailApi.SEAT_SPECIAL) "특실" else "일반실"
+                        ServiceBus.append("빈 좌석 발견($seatLabel) -> 예약 시도: ${target.summary()}")
                         try {
-                            val pnr = api.reserve(target, prefs.adultCount, prefs.seatType)
+                            val pnr = api.reserve(target, prefs.adultCount, seatForTarget)
                             val msg = "✅ 예약 성공!\n${target.summary()}\n예약번호(PNR): $pnr\n\n결제 마감 시간 내에 코레일 앱/사이트에서 직접 결제를 완료하세요."
                             ServiceBus.append(msg)
                             notifier.send(msg)

@@ -149,10 +149,10 @@ class MainActivity : AppCompatActivity() {
             binding.textSelectedDate.text = "선택된 날짜: $selectedDate"
         }
 
-        if (prefs.seatType == KorailApi.SEAT_SPECIAL) {
-            binding.rbSpecialSeat.isChecked = true
-        } else {
-            binding.rbGeneralSeat.isChecked = true
+        when (prefs.seatType) {
+            KorailApi.SEAT_SPECIAL -> binding.rbSpecialSeat.isChecked = true
+            KorailApi.SEAT_ANY -> binding.rbAnySeat.isChecked = true
+            else -> binding.rbGeneralSeat.isChecked = true
         }
 
         val types = prefs.trainTypes
@@ -802,8 +802,11 @@ class MainActivity : AppCompatActivity() {
         prefs.startTime = startTime
         prefs.endTime = endTime
         prefs.adultCount = adultCount
-        prefs.seatType = if (binding.radioGroupSeatType.checkedRadioButtonId == binding.rbSpecialSeat.id)
-            KorailApi.SEAT_SPECIAL else KorailApi.SEAT_GENERAL
+        prefs.seatType = when (binding.radioGroupSeatType.checkedRadioButtonId) {
+            binding.rbSpecialSeat.id -> KorailApi.SEAT_SPECIAL
+            binding.rbAnySeat.id -> KorailApi.SEAT_ANY
+            else -> KorailApi.SEAT_GENERAL
+        }
         prefs.trainTypes = selectedTypes
         prefs.pushRecentRoute(dep, arr)
 

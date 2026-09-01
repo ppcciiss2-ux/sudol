@@ -23,8 +23,8 @@ android {
         // in-place update (which keeps the app's data — 코레일 로그인 정보, 텔레그램
         // 토큰이 저장된 EncryptedSharedPreferences) when the new APK is signed with
         // the SAME key and has a HIGHER versionCode than the installed one.
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
     }
 
     signingConfigs {

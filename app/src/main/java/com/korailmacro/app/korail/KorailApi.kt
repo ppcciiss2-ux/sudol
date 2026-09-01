@@ -105,6 +105,8 @@ class KorailApi {
 
         const val SEAT_GENERAL = "1"
         const val SEAT_SPECIAL = "2"
+        // User preference only (never sent to KORAIL): try 일반실 first, then 특실, per train.
+        const val SEAT_ANY = "0"
 
         // "전체" (all train types) train group/type code used by the mobile app search screen
         private const val TRAIN_GROUP_ALL = "109"
