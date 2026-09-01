@@ -102,17 +102,29 @@ class ReservationService : Service() {
                             KorailApi.SEAT_GENERAL else KorailApi.SEAT_SPECIAL
                         val seatLabel = if (seatForTarget == KorailApi.SEAT_SPECIAL) "특실" else "일반실"
                         ServiceBus.append("빈 좌석 발견($seatLabel) -> 예약 시도: ${target.summary()}")
-                        try {
-                            val pnr = api.reserve(target, prefs.adultCount, seatForTarget)
+                        // If the session drops mid-reserve, log back in and retry the SAME train
+                        // right away — waiting for the next poll usually means the seat is gone.
+                        var pnr: String? = null
+                        for (attempt in 1..2) {
+                            try {
+                                pnr = api.reserve(target, prefs.adultCount, seatForTarget)
+                                break
+                            } catch (e: Exception) {
+                                ServiceBus.append("예약 시도 실패: ${e.message}")
+                                if (isSessionExpired(e.message) && attempt == 1) {
+                                    reLogin(api, prefs)
+                                } else {
+                                    break
+                                }
+                            }
+                        }
+                        if (pnr != null) {
                             val msg = "✅ 예약 성공!\n${target.summary()}\n예약번호(PNR): $pnr\n\n결제 마감 시간 내에 코레일 앱/사이트에서 직접 결제를 완료하세요."
                             ServiceBus.append(msg)
                             notifier.send(msg)
                             updateNotification(buildResultNotification("예약 성공: $pnr"))
                             stopSelfSafely()
                             return@launch
-                        } catch (e: Exception) {
-                            ServiceBus.append("예약 시도 실패: ${e.message}")
-                            if (isSessionExpired(e.message)) reLogin(api, prefs)
                         }
                     } else {
                         ServiceBus.append("빈 좌석 없음 (조건에 맞는 열차 ${matchingTrains.size}개 확인, ${intervalMs / 1000}초 후 재시도)")

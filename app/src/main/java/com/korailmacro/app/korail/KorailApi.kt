@@ -66,15 +66,36 @@ enum class TrainType(val label: String) {
     abstract fun matches(name: String): Boolean
 }
 
-/** In-memory cookie jar so the login session cookie (JSESSIONID) survives for this client's lifetime. */
+/**
+ * In-memory cookie jar so the login session cookie (JSESSIONID) survives for this
+ * client's lifetime.
+ *
+ * Cookies are MERGED by name per host — the previous version replaced the whole
+ * cookie list with whatever a single response returned, so any search/reserve
+ * response that set an unrelated cookie (a load-balancer or tracking cookie) and
+ * *not* JSESSIONID silently dropped the login session. The reserve call then failed
+ * with "로그아웃되었습니다. 다시 로그인하여 주십시오." until a later response happened
+ * to omit Set-Cookie and let JSESSIONID slip through.
+ */
 private class MemoryCookieJar : CookieJar {
-    private val store = mutableMapOf<String, List<Cookie>>()
+    private val store = mutableMapOf<String, MutableMap<String, Cookie>>()
 
+    @Synchronized
     override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
-        if (cookies.isNotEmpty()) store[url.host] = cookies
+        val hostStore = store.getOrPut(url.host) { mutableMapOf() }
+        val now = System.currentTimeMillis()
+        for (cookie in cookies) {
+            if (cookie.expiresAt <= now) hostStore.remove(cookie.name)
+            else hostStore[cookie.name] = cookie
+        }
     }
 
-    override fun loadForRequest(url: HttpUrl): List<Cookie> = store[url.host] ?: emptyList()
+    @Synchronized
+    override fun loadForRequest(url: HttpUrl): List<Cookie> {
+        val hostStore = store[url.host] ?: return emptyList()
+        val now = System.currentTimeMillis()
+        return hostStore.values.filter { it.expiresAt > now }
+    }
 }
 
 class KorailApi {
