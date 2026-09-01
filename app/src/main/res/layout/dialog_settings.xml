@@ -90,7 +90,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:scrollbars="none"
-            android:layout_marginBottom="24dp">
+            android:layout_marginBottom="6dp">
 
             <LinearLayout
                 android:id="@+id/pollIntervalChipRow"
@@ -98,6 +98,14 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal" />
         </HorizontalScrollView>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="1초 등 너무 짧은 간격은 코레일 서버가 비정상 접근으로 보고 계정을 일시 제한할 수 있습니다. 급할 때만 사용하세요."
+            android:textSize="12sp"
+            android:textColor="@color/textSecondary"
+            android:layout_marginBottom="24dp" />
 
         <LinearLayout
             android:layout_width="match_parent"

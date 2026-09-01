@@ -19,6 +19,7 @@
             android:layout_marginBottom="16dp">
 
             <TextView
+                android:id="@+id/textTitle"
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:layout_height="wrap_content"
@@ -234,18 +235,41 @@
             android:layout_marginTop="8dp"
             android:text="배터리 최적화 제외 설정" />
 
-        <TextView
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="실행 로그"
-            android:textStyle="bold" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="16dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="실행 로그"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/buttonExpandLog"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="크게 보기"
+                android:textColor="@color/colorAccent"
+                android:padding="6dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless" />
+        </LinearLayout>
 
         <ScrollView
             android:id="@+id/scrollLog"
             android:layout_width="match_parent"
-            android:layout_height="240dp"
-            android:background="#111111">
+            android:layout_height="320dp"
+            android:background="#111111"
+            android:scrollbars="vertical"
+            android:scrollbarStyle="insideOverlay"
+            android:fadeScrollbars="false"
+            android:nestedScrollingEnabled="true">
 
             <TextView
                 android:id="@+id/textLog"
@@ -255,6 +279,7 @@
                 android:fontFamily="monospace"
                 android:padding="8dp"
                 android:textSize="12sp"
+                android:textIsSelectable="true"
                 android:text="대기 중..." />
         </ScrollView>
 

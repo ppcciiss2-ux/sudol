@@ -69,7 +69,7 @@ class ReservationService : Service() {
             }
 
             val notifier = TelegramNotifier(prefs.telegramToken, prefs.telegramChatId)
-            val intervalMs = prefs.pollIntervalSec.coerceAtLeast(2) * 1000L
+            val intervalMs = prefs.pollIntervalSec.coerceAtLeast(1) * 1000L
 
             while (isActive) {
                 try {

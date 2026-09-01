@@ -1,12 +1,25 @@
 package com.korailmacro.app.korail
 
-/** name -> station code, as the real KORAIL app knows it. */
+import java.text.Collator
+import java.util.Locale
+
+/**
+ * name -> station code, as the real KORAIL app knows it.
+ *
+ * NOTE: [code] is informational only. KORAIL's ScheduleView search takes the Korean
+ * station *name* (txtGoStart/txtGoEnd), not the code, so a station just needs to be
+ * in this list by name to be selectable and searchable.
+ */
 data class Station(val code: String, val name: String)
 
 /**
  * Full KORAIL station list (이름/코드), ported from the community-maintained
  * devxoul/korail Python client's stations.py so the app can offer a real
  * pick-from-list UI instead of free-text station names.
+ *
+ * That upstream list predates the 2017 강릉선(경강선) KTX opening, which is why
+ * 서원주·만종·횡성·둔내·평창·진부 were missing — they are added back in
+ * [GANGNEUNG_LINE_ADDITIONS] below. See [NAMES] for the merged, 가나다-sorted list.
  */
 object Stations {
     val ALL: List<Station> = listOf(
@@ -346,7 +359,27 @@ object Stations {
         Station("0178", "희방사")
     )
 
-    val NAMES: List<String> = ALL.map { it.name }
+    /**
+     * 강릉선(경강선) KTX stations that opened 2017-12 — after the upstream stations.py
+     * snapshot this list was ported from, hence previously absent (notably 서원주).
+     * Codes are best-effort and unused by search (see [Station]).
+     */
+    private val GANGNEUNG_LINE_ADDITIONS: List<Station> = listOf(
+        Station("0522", "만종"),
+        Station("0523", "서원주"),
+        Station("0524", "횡성"),
+        Station("0525", "둔내"),
+        Station("0526", "평창"),
+        Station("0527", "진부")
+    )
+
+    /** Merged station list — the ported upstream set plus [GANGNEUNG_LINE_ADDITIONS]. */
+    val STATIONS: List<Station> = ALL + GANGNEUNG_LINE_ADDITIONS
+
+    private val KOREAN_COLLATOR: Collator = Collator.getInstance(Locale.KOREAN)
+
+    /** All station names, de-duplicated and 가나다-sorted so the picker list and 자음 jump tabs stay in order regardless of insertion order. */
+    val NAMES: List<String> = STATIONS.map { it.name }.distinct().sortedWith(KOREAN_COLLATOR)
 
     private val CHOSEONG = charArrayOf(
         'ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ',

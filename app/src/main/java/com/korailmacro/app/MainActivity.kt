@@ -107,6 +107,16 @@ class MainActivity : AppCompatActivity() {
 
         binding.buttonIgnoreBattery.setOnClickListener { requestIgnoreBatteryOptimizations() }
 
+        binding.textTitle.text = "코레일 예매 매크로  v${BuildConfig.VERSION_NAME}"
+
+        // scrollLog sits inside the page's outer ScrollView; without this the parent
+        // steals vertical drags and the log never scrolls on its own.
+        binding.scrollLog.setOnTouchListener { v, _ ->
+            v.parent?.requestDisallowInterceptTouchEvent(true)
+            false
+        }
+        binding.buttonExpandLog.setOnClickListener { showFullScreenLog() }
+
         lifecycleScope.launch {
             ServiceBus.log.collect {
                 // Only follow new lines if the user was already at (or near) the bottom —
@@ -129,8 +139,9 @@ class MainActivity : AppCompatActivity() {
     private fun restoreFromPrefs() {
         binding.editDepStation.setText(prefs.depStation)
         binding.editArrStation.setText(prefs.arrStation)
-        binding.editStartTime.setText(prefs.startTime)
-        binding.editEndTime.setText(prefs.endTime)
+        // Stored as HHmmss; the pickers and 시작 handler work in HHmm.
+        binding.editStartTime.setText(prefs.startTime.take(4))
+        binding.editEndTime.setText(prefs.endTime.take(4))
         binding.editAdultCount.setText(prefs.adultCount.toString())
 
         selectedDate = prefs.travelDate
@@ -186,7 +197,7 @@ class MainActivity : AppCompatActivity() {
         db.editTelegramChatId.setText(prefs.telegramChatId)
         db.switchDarkMode.isChecked = ThemePrefs.isDarkMode(this)
 
-        val intervalOptions = intArrayOf(5, 10, 15, 30, 60)
+        val intervalOptions = intArrayOf(1, 5, 10, 15, 30, 60)
         var pickedInterval = intervalOptions.minByOrNull { kotlin.math.abs(it - prefs.pollIntervalSec) } ?: 5
 
         lateinit var refreshIntervalChips: () -> Unit
@@ -249,6 +260,40 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
+    /** Full-screen, auto-scrolling view of the run log — same content as the inline panel, but readable. */
+    private fun showFullScreenLog() {
+        val scroll = ScrollView(this).apply {
+            setBackgroundColor(Color.parseColor("#111111"))
+            isFillViewport = true
+        }
+        val text = TextView(this).apply {
+            setTextColor(Color.parseColor("#00FF66"))
+            typeface = android.graphics.Typeface.MONOSPACE
+            textSize = 13f
+            setPadding(dp(12), dp(12), dp(12), dp(12))
+            setTextIsSelectable(true)
+            this.text = ServiceBus.log.value
+        }
+        scroll.addView(text)
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("실행 로그")
+            .setView(scroll)
+            .setPositiveButton("닫기", null)
+            .create()
+
+        val job = lifecycleScope.launch {
+            ServiceBus.log.collect {
+                val atBottom = isScrollNearBottom(scroll)
+                text.text = it
+                if (atBottom) scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }
+            }
+        }
+        dialog.setOnDismissListener { job.cancel() }
+        dialog.show()
+        scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }
+    }
+
     /** KORAIL-style chip picker for 성인 인원수 (1~9명), tap-to-select-and-dismiss like the end-time picker. */
     private fun showAdultCountPicker() {
         val pad = dp(16)
@@ -285,6 +330,34 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
+    private fun ymdDashed(yyyymmdd: String): String =
+        "${yyyymmdd.substring(0, 4)}-${yyyymmdd.substring(4, 6)}-${yyyymmdd.substring(6, 8)}"
+
+    /**
+     * Non-null, human-readable reason when a [date] (yyyyMMdd) + [time] (HHmm/HHmmss)
+     * departure window is already in the past. KORAIL answers these with an opaque
+     * "조회 실패", so we detect it up front and state exactly what's wrong instead.
+     */
+    private fun pastDepartureReason(date: String, time: String): String? {
+        if (date.length != 8) return null
+        val now = Calendar.getInstance()
+        val today = "%04d%02d%02d".format(
+            now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1, now.get(Calendar.DAY_OF_MONTH)
+        )
+        if (date < today) {
+            return "지난 날짜는 예매할 수 없습니다.\n오늘 ${ymdDashed(today)} / 선택 ${ymdDashed(date)}"
+        }
+        if (date == today) {
+            val nowHm = "%02d%02d".format(now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE))
+            val pickedHm = time.padEnd(4, '0').take(4)
+            if (pickedHm < nowHm) {
+                return "오늘 이미 지난 시각입니다 (선택 ${pickedHm.take(2)}:${pickedHm.drop(2)}).\n" +
+                    "현재 ${nowHm.take(2)}:${nowHm.drop(2)} 이후로 시작시각을 정하세요."
+            }
+        }
+        return null
+    }
 
     private fun isScrollNearBottom(scrollView: ScrollView): Boolean {
         val child = scrollView.getChildAt(0) ?: return true
@@ -468,13 +541,40 @@ class MainActivity : AppCompatActivity() {
             topMargin = dp(16)
         })
 
-        var pickedHour = binding.editStartTime.text.toString().take(2).toIntOrNull() ?: 0
+        val currentStart = binding.editStartTime.text.toString().trim()
+        var pickedHour = currentStart.take(2).toIntOrNull() ?: 0
+        var pickedMinute = currentStart.drop(2).take(2).toIntOrNull() ?: 0
+
+        val hourLabelRow = TextView(this).apply {
+            text = "시"
+            setTextColor(colorTextSecondary)
+            textSize = 13f
+        }
+        root.addView(hourLabelRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+            topMargin = dp(8)
+        })
 
         val hourScroll = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
         val hourRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         hourScroll.addView(hourRow)
         root.addView(hourScroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-            topMargin = dp(8)
+            topMargin = dp(4)
+        })
+
+        val minuteLabelRow = TextView(this).apply {
+            text = "분"
+            setTextColor(colorTextSecondary)
+            textSize = 13f
+        }
+        root.addView(minuteLabelRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+            topMargin = dp(10)
+        })
+
+        val minuteScroll = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
+        val minuteRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        minuteScroll.addView(minuteRow)
+        root.addView(minuteScroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+            topMargin = dp(4)
         })
 
         val summary = TextView(this).apply {
@@ -489,7 +589,7 @@ class MainActivity : AppCompatActivity() {
             val y = pickedDate.substring(0, 4)
             val m = pickedDate.substring(4, 6).toInt()
             val d = pickedDate.substring(6, 8).toInt()
-            summary.text = "${y}년 ${m}월 ${d}일 · ${pickedHour}시 이후"
+            summary.text = "${y}년 ${m}월 ${d}일 · %02d:%02d 이후".format(pickedHour, pickedMinute)
         }
 
         lateinit var refreshHourChips: () -> Unit
@@ -506,7 +606,22 @@ class MainActivity : AppCompatActivity() {
                 })
             }
         }
+        lateinit var refreshMinuteChips: () -> Unit
+        refreshMinuteChips = {
+            minuteRow.removeAllViews()
+            for (min in 0..55 step 5) {
+                val c = chip("%02d분".format(min), selected = min == pickedMinute) {
+                    pickedMinute = min
+                    refreshMinuteChips()
+                    updateSummary()
+                }
+                minuteRow.addView(c, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    marginEnd = dp(6)
+                })
+            }
+        }
         refreshHourChips()
+        refreshMinuteChips()
         updateSummary()
 
         calendarView.setOnDateChangeListener { _, year, month, dayOfMonth ->
@@ -525,9 +640,15 @@ class MainActivity : AppCompatActivity() {
 
         val dialog = AlertDialog.Builder(this).setView(ScrollView(this).apply { addView(root) }).create()
         confirmBtn.setOnClickListener {
+            val startTime = "%02d%02d00".format(pickedHour, pickedMinute)
+            val pastReason = pastDepartureReason(pickedDate, startTime)
+            if (pastReason != null) {
+                Toast.makeText(this, pastReason, Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
             selectedDate = pickedDate
             binding.textSelectedDate.text = "선택된 날짜: $selectedDate"
-            binding.editStartTime.setText("%02d00".format(pickedHour))
+            binding.editStartTime.setText("%02d%02d".format(pickedHour, pickedMinute))
             dialog.dismiss()
         }
         dialog.show()
@@ -544,35 +665,97 @@ class MainActivity : AppCompatActivity() {
         }
         root.addView(dialogTitle("종료시각 선택"))
 
-        val currentHour = binding.editEndTime.text.toString().take(2).toIntOrNull()
+        val currentEnd = binding.editEndTime.text.toString().trim()
+        val currentHour = currentEnd.take(2).toIntOrNull()
+        var pickedHour = currentHour ?: 0
+        var pickedMinute = currentEnd.drop(2).take(2).toIntOrNull() ?: 0
+
+        root.addView(TextView(this).apply {
+            text = "시"
+            setTextColor(colorTextSecondary)
+            textSize = 13f
+        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12) })
 
         val hourScroll = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
         val hourRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         hourScroll.addView(hourRow)
         root.addView(hourScroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-            topMargin = dp(16)
+            topMargin = dp(4)
         })
 
-        lateinit var dialog: AlertDialog
-        for (h in 0..23) {
-            val c = chip("${h}시", selected = currentHour == h) {
-                binding.editEndTime.setText("%02d00".format(h))
-                dialog.dismiss()
-            }
-            hourRow.addView(c, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                marginEnd = dp(6)
-            })
+        root.addView(TextView(this).apply {
+            text = "분"
+            setTextColor(colorTextSecondary)
+            textSize = 13f
+        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10) })
+
+        val minuteScroll = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
+        val minuteRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        minuteScroll.addView(minuteRow)
+        root.addView(minuteScroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+            topMargin = dp(4)
+        })
+
+        val summary = TextView(this).apply {
+            setTextColor(colorTextSecondary)
+            textSize = 14f
         }
+        root.addView(summary, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+            topMargin = dp(12)
+        })
+        fun updateSummary() { summary.text = "%02d:%02d 까지".format(pickedHour, pickedMinute) }
+
+        lateinit var refreshHourChips: () -> Unit
+        refreshHourChips = {
+            hourRow.removeAllViews()
+            for (h in 0..23) {
+                val c = chip("${h}시", selected = h == pickedHour) {
+                    pickedHour = h
+                    refreshHourChips()
+                    updateSummary()
+                }
+                hourRow.addView(c, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    marginEnd = dp(6)
+                })
+            }
+        }
+        lateinit var refreshMinuteChips: () -> Unit
+        refreshMinuteChips = {
+            minuteRow.removeAllViews()
+            for (min in 0..55 step 5) {
+                val c = chip("%02d분".format(min), selected = min == pickedMinute) {
+                    pickedMinute = min
+                    refreshMinuteChips()
+                    updateSummary()
+                }
+                minuteRow.addView(c, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    marginEnd = dp(6)
+                })
+            }
+        }
+        refreshHourChips()
+        refreshMinuteChips()
+        updateSummary()
+
+        lateinit var dialog: AlertDialog
+
+        val confirmChip = chip("이 시각으로 설정", selected = false) {
+            binding.editEndTime.setText("%02d%02d".format(pickedHour, pickedMinute))
+            dialog.dismiss()
+        }
+        root.addView(confirmChip, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+            topMargin = dp(16)
+        })
 
         val clearChip = chip("선택 안함", selected = currentHour == null) {
             binding.editEndTime.setText("")
             dialog.dismiss()
         }
         root.addView(clearChip, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-            topMargin = dp(16)
+            topMargin = dp(8)
         })
 
-        dialog = AlertDialog.Builder(this).setView(root).create()
+        dialog = AlertDialog.Builder(this).setView(ScrollView(this).apply { addView(root) }).create()
         dialog.show()
         dialog.window?.setBackgroundDrawable(GradientDrawable().apply { setColor(colorBg) })
     }
@@ -595,6 +778,11 @@ class MainActivity : AppCompatActivity() {
         }
         if (selectedDate.isBlank()) {
             Toast.makeText(this, "날짜를 선택하세요", Toast.LENGTH_SHORT).show()
+            return
+        }
+        pastDepartureReason(selectedDate, startTime)?.let { reason ->
+            Toast.makeText(this, reason, Toast.LENGTH_LONG).show()
+            ServiceBus.append("시작 취소 — $reason")
             return
         }
         val selectedTypes = buildSet {

@@ -1,15 +1,15 @@
-import java.util.Properties
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
 
-val keystoreProperties = Properties()
-val keystorePropertiesFile = rootProject.file("keystore.properties")
-if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(keystorePropertiesFile.inputStream())
-}
+// One committed keystore signs EVERY build (debug and release), on any machine, so
+// the APK signature never changes — that's what lets a new APK install *over* an old
+// one as an update and keep its data (코레일 로그인 정보 / 텔레그램 토큰). It is a
+// personal-use signing key with no security value beyond claiming this app id.
+val committedKeystore = rootProject.file("signing/korail-macro.jks")
+val committedKeystorePassword = "korailmacro"
+val committedKeystoreAlias = "korailmacro"
 
 android {
     namespace = "com.korailmacro.app"
@@ -19,22 +19,27 @@ android {
         applicationId = "com.korailmacro.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        // Bump versionCode on every release you hand out. Android only allows an
+        // in-place update (which keeps the app's data — 코레일 로그인 정보, 텔레그램
+        // 토큰이 저장된 EncryptedSharedPreferences) when the new APK is signed with
+        // the SAME key and has a HIGHER versionCode than the installed one.
+        versionCode = 2
+        versionName = "1.1"
     }
 
     signingConfigs {
-        if (keystorePropertiesFile.exists()) {
-            create("release") {
-                storeFile = rootProject.file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
-            }
+        create("shared") {
+            storeFile = committedKeystore
+            storePassword = committedKeystorePassword
+            keyAlias = committedKeystoreAlias
+            keyPassword = committedKeystorePassword
         }
     }
 
     buildTypes {
+        getByName("debug") {
+            signingConfig = signingConfigs.getByName("shared")
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -42,9 +47,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            if (keystorePropertiesFile.exists()) {
-                signingConfig = signingConfigs.getByName("release")
-            }
+            signingConfig = signingConfigs.getByName("shared")
         }
     }
 
@@ -59,6 +62,7 @@ android {
 
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 }
 
