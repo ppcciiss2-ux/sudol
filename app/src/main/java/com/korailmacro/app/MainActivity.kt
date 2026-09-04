@@ -197,7 +197,7 @@ class MainActivity : AppCompatActivity() {
         db.editTelegramChatId.setText(prefs.telegramChatId)
         db.switchDarkMode.isChecked = ThemePrefs.isDarkMode(this)
 
-        val intervalOptions = intArrayOf(1, 5, 10, 15, 30, 60)
+        val intervalOptions = intArrayOf(1, 2, 3, 4, 5, 10, 15, 30, 60)
         var pickedInterval = intervalOptions.minByOrNull { kotlin.math.abs(it - prefs.pollIntervalSec) } ?: 5
 
         lateinit var refreshIntervalChips: () -> Unit
